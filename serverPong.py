@@ -2,7 +2,16 @@ import socket
 import pygame
 import numpy
 from _thread import *
+from player import Player
+from player import Ball
+import pickle
 #import sys
+
+black = (0,0,0)
+white = (255,255,255)
+red_bright = (255,0,0)
+green_bright = (0,255,0)
+blue_bright = (0,0,255)
 
 server = "192.168.1.130"
 port = 5555
@@ -13,23 +22,8 @@ clock = pygame.time.Clock()
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
-class ball():
-    def __init__ (self, x, y, width, height, color):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.color = color
-        self.rect = (self.x,self.y,width,height)
-        self.xvel = numpy.random.randint(3,5)
-        self.yvel = numpy.random.randint(-3,3)
 
-    def update(self):
-        self.x += self.xvel
-        self.y += self.yvel
-        self.rect = (self.x, self.y, self.width, self.height)
-
-ball = ball(284, 184, 16, 16, (255,255,255))
+ball = Ball(284, 184, 16, 16, (255,255,255))
 gameRunning = True
 
 try:
@@ -41,36 +35,24 @@ s.listen(2)
 print("Waiting for a connection, server started.")
 
 
-def read_pos(mystr):
-    mystr = mystr.split(",")
-    if (len(mystr)!= 2):
-        print(len(mystr))
-        print(mystr)
-    return int(mystr[0]),int(mystr[1])
-
-
-def make_pos(tup):
-    return str(tup[0]) + "," + str(tup[1]) + "," + str(tup[2]) + "," + str(tup[3])
-
-
 def gameloop():
     while gameRunning:
         # Check for collision of ball with either player
-        if pygame.Rect(pos[0][0], pos[0][1], 10, 50).collidepoint(ball.x, ball.y + 8):
-            if ball.y + 8 > pos[0][1] + (50 / 2):
-                ball.yvel = round(abs((ball.y + 8) - (pos[0][1] + 50 / 2)) / (50 / 2) * 3, 0)
-            elif ball.y + 8 < pos[0][1] + (50 / 2):
-                ball.yvel = round(abs((ball.y + 8) - (pos[0][1] + 50 / 2)) / (50 / 2) * 3, 0) * -1
+        if pygame.Rect(players[0].rect).collidepoint(ball.x, ball.y + 8):
+            if ball.y + 8 >= players[0].y + (50 / 2):
+                ball.yvel = round(abs((ball.y + 8) - (players[0].y + 50 / 2)) / (50 / 2) * 3, 0)
+            elif ball.y + 8 <= players[0].y + (50 / 2):
+                ball.yvel = round(abs((ball.y + 8) - (players[0].y + 50 / 2)) / (50 / 2) * 3, 0) * -1
             ball.yvel = int(ball.yvel)
             ball.xvel *= -1
             ball.x += 5
             print("collision with p1")
             print(ball.yvel)
-        elif pygame.Rect(pos[1][0], pos[1][1], 10, 50).collidepoint(ball.x + 16, ball.y + 8):
-            if ball.y + 8 > pos[1][1] + (50 / 2):
-                ball.yvel = round(abs((ball.y + 8) - (pos[1][1] + 50 / 2)) / (50 / 2) * 3, 0)
-            elif ball.y + 8 < pos[1][1] + (50 / 2):
-                ball.yvel = round(abs((ball.y + 8) - (pos[1][1] + 50 / 2)) / (50 / 2) * 3, 0) * -1
+        elif pygame.Rect(players[1].rect).collidepoint(ball.x + 16, ball.y + 8):
+            if ball.y + 8 > players[1].y + (50 / 2):
+                ball.yvel = round(abs((ball.y + 8) - (players[1].y + 50 / 2)) / (50 / 2) * 3, 0)
+            elif ball.y + 8 < players[1].y + (50 / 2):
+                ball.yvel = round(abs((ball.y + 8) - (players[1].y + 50 / 2)) / (50 / 2) * 3, 0) * -1
             ball.yvel = int(ball.yvel)
             ball.xvel *= -1
             ball.x -= 5
@@ -97,36 +79,43 @@ def gameloop():
         ball.update()
         clock.tick(60)
 
-pos = [(0,200-25),(590,200-25)]
+# start position players
+players = [Player(0,int(200-(50/2)),10,50,white),Player(590,int(200-(50/2)),10,50,white)]
 
 
 def threaded_client(conn, player, ball):
-    #print((pos[player][0],pos[player][1],ball.x,ball.y))
-    conn.send(str.encode(make_pos((pos[player][0],pos[player][1],ball.x,ball.y))))
+    #print((players[player].x,players[player].y,ball.x,ball.y))
+    initial_send = {
+        "player": players[player],
+        "ball": ball
+    }
+    conn.send(pickle.dumps(initial_send["player"]))
     #reply = ""
     while True:
         # I commented the try-except out to ensure we can fix bugs.
         #try:
-            data = read_pos(conn.recv(2048).decode())
-            pos[player] = data
-
-
-
-
+            data = pickle.loads(conn.recv(2048))
+            players[player] = data["player"]
 
             if not data:
                 print("disconnected")
                 break
             else:
                 if player == 1:
-                    reply = pos[0]
+                    reply = {
+                        "player": players[0],
+                        "ball": ball
+                    }
                 else:
-                    reply = pos[1]
-                reply = (reply[0],reply[1],ball.x,ball.y)
-                print("received: ", data)
-                print("sending: ", reply)
+                    reply = {
+                        "player": players[1],
+                        "ball": ball
+                    }
 
-            conn.sendall(str.encode(make_pos(reply)))
+                #print("received: ", data)
+                #print("sending: ", reply)
+
+            conn.sendall(pickle.dumps(reply))
 
 
         # except:
