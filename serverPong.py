@@ -35,6 +35,8 @@ print("Waiting for a connection, server started.")
 connected = set()
 games = {}
 idCount = 0
+setting_vals = Settings(50, 50, 5, 5, 3, 7)
+score = [0, 0]
 
 
 def ball_collision_check():
@@ -42,9 +44,9 @@ def ball_collision_check():
         # Check for collision of ball with either player
         if pygame.Rect(players[0].rect).collidepoint(ball.x, ball.y + 8):
             if ball.y + 8 >= players[0].y + (players[0].height / 2):
-                ball.yvel = round(abs((ball.y + 8) - (players[0].y + players[0].height / 2)) / (players[0].height / 2) * 3, 0)
+                ball.yvel = round(abs((ball.y + 8) - (players[0].y + players[0].height / 2)) / (players[0].height / 2) * ball.yvelmax, 0)
             elif ball.y + 8 <= players[0].y + (players[0].height / 2):
-                ball.yvel = round(abs((ball.y + 8) - (players[0].y + players[0].height / 2)) / (players[0].height / 2) * 3, 0) * -1
+                ball.yvel = round(abs((ball.y + 8) - (players[0].y + players[0].height / 2)) / (players[0].height / 2) * ball.yvelmax, 0) * -1
             ball.yvel = int(ball.yvel)
             ball.xvel *= -1
             ball.x += 5
@@ -52,9 +54,9 @@ def ball_collision_check():
             print(ball.yvel)
         elif pygame.Rect(players[1].rect).collidepoint(ball.x + 16, ball.y + 8):
             if ball.y + 8 > players[1].y + (players[1].height / 2):
-                ball.yvel = round(abs((ball.y + 8) - (players[1].y + players[1].height / 2)) / (players[1].height / 2) * 3, 0)
+                ball.yvel = round(abs((ball.y + 8) - (players[1].y + players[1].height / 2)) / (players[1].height / 2) * ball.yvelmax, 0)
             elif ball.y + 8 < players[1].y + (players[1].height / 2):
-                ball.yvel = round(abs((ball.y + 8) - (players[1].y + players[1].height / 2)) / (players[1].height / 2) * 3, 0) * -1
+                ball.yvel = round(abs((ball.y + 8) - (players[1].y + players[1].height / 2)) / (players[1].height / 2) * ball.yvelmax, 0) * -1
             ball.yvel = int(ball.yvel)
             ball.xvel *= -1
             ball.x -= 5
@@ -65,12 +67,12 @@ def ball_collision_check():
             # reset ball location
             ball.x = 284
             ball.y = 184
-            # p2score += 1
+            score[1] += 1
         elif ball.x >= 574:
             # reset ball location
             ball.x = 284
             ball.y = 184
-            # p1score += 1
+            score[0] += 1
 
         # if p1score == 10 or p2score == 10:
         #     gameRunning = False
@@ -87,9 +89,11 @@ players = [Player(0, 0, int(200-(50/2)), 10, 50, white), Player(1, 590, int(200-
 
 
 def threaded_client(conn, player, ball):
+    global setting_vals
     initial_send = {
         "player": players[player],
-        "ball": ball
+        "ball": ball,
+        "score": score
     }
     conn.send(pickle.dumps(initial_send["player"]))
 
@@ -103,19 +107,20 @@ def threaded_client(conn, player, ball):
         players[player].y = data["player"].y
         players[player].update()
         players[player].ready = data["player"].ready
-        setting_vals = data["settings"]
+        if player == 0:
+            setting_vals = data["settings"]
 
 
 
 
         # once both players connected we need to start the gameloop
-        if not setup and gameRunning and player == 1:
+        if not setup and gameRunning and player == 0:
             players[0].height = setting_vals.p1size
             players[1].height = setting_vals.p2size
             players[0].vel = setting_vals.p1vel
             players[1].vel = setting_vals.p2vel
             ball.xvel = setting_vals.ballxvel
-            ball.yvel = setting_vals.ballyvel
+            ball.yvelmax = setting_vals.ballyvel
             players[0].update()
             players[1].update()
             start_new_thread(ball_collision_check, ())
@@ -128,7 +133,8 @@ def threaded_client(conn, player, ball):
             break
         else:
             reply = {
-                    "ball": ball
+                    "ball": ball,
+                    "score": score
                 }
 
             if players[0].ready and players[1].ready:
@@ -139,8 +145,10 @@ def threaded_client(conn, player, ball):
 
             if player == 1:
                 reply["player"] = players[0]
+                reply["settings"] = setting_vals
             else:
                 reply["player"] = players[1]
+
 
 
 

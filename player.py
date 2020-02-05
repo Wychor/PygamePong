@@ -47,6 +47,7 @@ class Ball():
         self.rect = (self.x,self.y,width,height)
         self.xvel = 3 #numpy.random.randint(3,5)
         self.yvel = numpy.random.randint(-3,3)
+        self.yvelmax = 3
 
     def update(self):
         self.x += self.xvel
@@ -64,7 +65,7 @@ class Settings:
         self.ballyvel = ballyvel
 
     # draw text for each setting
-    def draw(self, win, display_width, color):
+    def draw(self, win, display_width, color, settings_btns):
         font = pygame.font.SysFont("comicsans", 40)
         text = font.render("P1 size: " + str(round(self.p1size / 10)), 1, color)
         win.blit(text, (round(display_width / 2) - round(text.get_width() / 2), 25))
@@ -83,3 +84,8 @@ class Settings:
 
         text = font.render("Ball vertical speed: " + str(self.ballyvel), 1, color)
         win.blit(text, (round(display_width / 2) - round(text.get_width() / 2), 275))
+
+        for btn in settings_btns:
+            btn.draw(win)
+
+

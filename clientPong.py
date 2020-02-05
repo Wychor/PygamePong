@@ -30,7 +30,7 @@ pygame.display.set_caption('Pong')
 clock = pygame.time.Clock()
 
 
-def generate_board(ball, p1, p2):
+def generate_board(ball, p1, p2, score):
     gameDisplay.fill(black)
     # generate ball
     pygame.draw.rect(gameDisplay, white, (ball.x, ball.y+3, ball.width, ball.height-6))
@@ -40,18 +40,28 @@ def generate_board(ball, p1, p2):
     pygame.draw.rect(gameDisplay, white, p1.rect)
     pygame.draw.rect(gameDisplay, white, p2.rect)
 
+    for y in [0, 38, 76, 114, 152, 190, 228, 266, 304, 342, 380]:
+        pygame.draw.rect(gameDisplay, white, (display_width // 2 - 1, y, 2, 20))
+
+    font = pygame.font.SysFont("comicsans", 40)
+    text = font.render(str(score[0]), 1, white)
+    gameDisplay.blit(text, (display_width // 2 - 50 - text.get_width() // 2, 10))
+    text = font.render(str(score[1]), 1, white)
+    gameDisplay.blit(text, (display_width // 2 + 50 - text.get_width() // 2, 10))
+
     pygame.display.update()
 
 
 class Button:
-    def __init__(self, text, x, y, color):
+    def __init__(self, id, text, x, y, width, height, color):
         self.text = text
         self.x = x
         self.y = y
         self.color = color
-        self.width = 150
-        self.height = 100
+        self.width = width
+        self.height = height
         self.rect = (self.x, self.y, self.width, self.height)
+        self.id = id
 
     def draw(self, win):
         pygame.draw.rect(win, self.color, self.rect)
@@ -71,6 +81,7 @@ def game_loop(p1, p2, n, settings):
         receivedData = n.send(sendData)
         p2 = receivedData["player"]
         ball = receivedData["ball"]
+        score = receivedData["score"]
         p2.update()
 
         # do something when something happens
@@ -92,15 +103,30 @@ def game_loop(p1, p2, n, settings):
         elif p2.y > 400-p1.height:
             p2.y = 400-p1.height
 
-        generate_board(ball, p1, p2)
+        generate_board(ball, p1, p2, score)
         clock.tick(60)
 
 
 def main_menu():
     n = Network()
     p1 = n.getP()
-    settings = Settings(70, 50, 5, 5, 3, 3)
-    ready_btn = Button("Ready", display_width//2-75, 300, grey)
+    settings = Settings(50, 50, 5, 5, 3, 7)
+    ready_btn = Button("Ready", "Ready", display_width//2-75, 310, 150, 75, grey)
+    settings_btns = [
+        Button("p1_size+", "+", display_width // 2 + 100, 25, 25, 25, grey),
+        Button("p1_size-", "-", display_width // 2 - 125, 25, 25, 25, grey),
+        Button("p2_size+", "+", display_width // 2 + 100, 75, 25, 25, grey),
+        Button("p2_size-", "-", display_width // 2 - 125, 75, 25, 25, grey),
+        Button("p1_vel+", "+", display_width // 2 + 100, 125, 25, 25, grey),
+        Button("p1_vel-", "-", display_width // 2 - 125, 125, 25, 25, grey),
+        Button("p2_vel+", "+", display_width // 2 + 100, 175, 25, 25, grey),
+        Button("p2_vel-", "-", display_width // 2 - 125, 175, 25, 25, grey),
+        Button("x_vel+", "+", display_width // 2 + 175, 225, 25, 25, grey),
+        Button("x_vel-", "-", display_width // 2 - 200, 225, 25, 25, grey),
+        Button("y_vel+", "+", display_width // 2 + 175, 275, 25, 25, grey),
+        Button("y_vel-", "-", display_width // 2 - 200, 275, 25, 25, grey)
+    ]
+
     while True:
         sendData = {
             "player": p1,
@@ -108,6 +134,8 @@ def main_menu():
         }
         receivedData = n.send(sendData)
         p2 = receivedData["player"]
+        if p1.number == 1:
+            settings = receivedData["settings"]
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -118,9 +146,39 @@ def main_menu():
                 pos = pygame.mouse.get_pos()
                 if pygame.Rect(ready_btn.rect).collidepoint(pos):
                     p1.ready = True
+                elif p1.number == 0:
+                    for btn in settings_btns:
+                        if pygame.Rect(btn.rect).collidepoint(pos):
+                            if btn.id == "p1_size+":
+                                settings.p1size += 10
+                            elif btn.id == "p1_size-":
+                                settings.p1size -= 10
+                            elif btn.id == "p2_size+":
+                                settings.p2size += 10
+                            elif btn.id == "p2_size-":
+                                settings.p2size -= 10
+                            elif btn.id == "p1_vel+":
+                                settings.p1vel += 1
+                            elif btn.id == "p1_vel-":
+                                settings.p1vel -= 1
+                            elif btn.id == "p2_vel+":
+                                settings.p2vel += 1
+                            elif btn.id == "p2_vel-":
+                                settings.p2vel -= 1
+                            elif btn.id == "x_vel+":
+                                settings.ballxvel += 1
+                            elif btn.id == "x_vel-":
+                                settings.ballxvel -= 1
+                            elif btn.id == "y_vel+":
+                                settings.ballyvel += 1
+                            elif btn.id == "y_vel-":
+                                settings.ballyvel -= 1
 
         gameDisplay.fill(black)
-        settings.draw(gameDisplay, display_width, white)
+        if p1.number == 0:
+            settings.draw(gameDisplay, display_width, white, settings_btns)
+        else:
+            settings.draw(gameDisplay, display_width, white, [])
         ready_btn.draw(gameDisplay)
         pygame.display.update()
         if receivedData["ready"]:
