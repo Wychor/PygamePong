@@ -2,9 +2,9 @@ import socket
 import pygame
 # import numpy
 from _thread import *
-from player import Player
-from player import Ball
-from player import Settings
+from classes import Player
+from classes import Ball
+from classes import Settings
 import pickle
 
 black = (0, 0, 0)
@@ -13,7 +13,7 @@ red_bright = (255, 0, 0)
 green_bright = (0, 255, 0)
 blue_bright = (0, 0, 255)
 
-server = "192.168.1.130"
+server = ""
 port = 5555
 
 pygame.init()
@@ -28,8 +28,9 @@ try:
     s.bind((server, port))
 except socket.error as e:
     str(e)
+    print(e)
 
-s.listen(2)
+s.listen()
 print("Waiting for a connection, server started.")
 
 connected = set()
@@ -74,9 +75,6 @@ def ball_collision_check():
             ball.y = 184
             score[0] += 1
 
-        # if p1score == 10 or p2score == 10:
-        #     gameRunning = False
-
         if ball.y <= 0 or ball.y >= 384:
             ball.yvel *= -1
 
@@ -85,7 +83,8 @@ def ball_collision_check():
 
 
 # start position players
-players = [Player(0, 0, int(200-(50/2)), 10, 50, white), Player(1, 590, int(200-(50/2)), 10, 50, white)]
+players = [Player(0, 0, int(200-(50/2)), 10, 50, white),
+           Player(1, 590, int(200-(50/2)), 10, 50, white)]
 
 
 def threaded_client(conn, player, ball):
@@ -101,17 +100,12 @@ def threaded_client(conn, player, ball):
     gameRunning = False
 
     while True:
-        # I commented the try-except out to ensure we can fix bugs.
-        # try:
         data = pickle.loads(conn.recv(2048))
         players[player].y = data["player"].y
         players[player].update()
         players[player].ready = data["player"].ready
         if player == 0:
             setting_vals = data["settings"]
-
-
-
 
         # once both players connected we need to start the gameloop
         if not setup and gameRunning and player == 0:
@@ -125,8 +119,6 @@ def threaded_client(conn, player, ball):
             players[1].update()
             start_new_thread(ball_collision_check, ())
             setup = True
-
-
 
         if not data:
             print("disconnected")
@@ -149,13 +141,7 @@ def threaded_client(conn, player, ball):
             else:
                 reply["player"] = players[1]
 
-
-
-
         conn.sendall(pickle.dumps(reply))
-
-        # except:
-        #     break
 
     print("Lost connection")
     conn.close()

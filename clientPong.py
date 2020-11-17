@@ -1,28 +1,24 @@
 import pygame
-import numpy
-#import pygame_textinput
 from network import Network
-from player import Player
-from player import Ball
-from player import Settings
+from classes import Settings
 
 pygame.init()
 
-# set useful shit
-display_width = 600#pygame.display.Info().current_w
-display_height = 400#pygame.display.Info().current_h
+# set useful things
+display_width = 600
+display_height = 400
 
-black = (0,0,0)
-white = (255,255,255)
-red_bright = (255,0,0)
-green_bright = (0,255,0)
-blue_bright = (0,0,255)
+black = (0, 0, 0)
+white = (255, 255, 255)
+red_bright = (255, 0, 0)
+green_bright = (0, 255, 0)
+blue_bright = (0, 0, 255)
 
-red = (200,0,0)
-green = (0,200,0)
-blue = (0,0,200)
-grey = (100,100,100)
-light_grey = (200,200,200)
+red = (200, 0, 0)
+green = (0, 200, 0)
+blue = (0, 0, 200)
+grey = (100, 100, 100)
+light_grey = (200, 200, 200)
 
 
 gameDisplay = pygame.display.set_mode((display_width,display_height))
@@ -53,7 +49,7 @@ def generate_board(ball, p1, p2, score):
 
 
 class Button:
-    def __init__(self, id, text, x, y, width, height, color):
+    def __init__(self, button_id, text, x, y, width, height, color):
         self.text = text
         self.x = x
         self.y = y
@@ -61,47 +57,39 @@ class Button:
         self.width = width
         self.height = height
         self.rect = (self.x, self.y, self.width, self.height)
-        self.id = id
+        self.id = button_id
 
     def draw(self, win):
         pygame.draw.rect(win, self.color, self.rect)
         font = pygame.font.SysFont("comicsans", 40)
         text = font.render(self.text, 1, white)
-        win.blit(text, (self.x + round(self.width/2) - round(text.get_width()/2), (self.y + round(self.height/2) - round(text.get_height()/2))))
+        win.blit(text, (self.x + round(self.width/2) - round(text.get_width()/2),
+                        (self.y + round(self.height/2) - round(text.get_height()/2))))
 
 
-def game_loop(p1, p2, n, settings):
-    gameRunning = True
+def game_loop(p1, n, settings):
+    game_running = True
 
-    while gameRunning:
-        sendData = {
+    while game_running:
+        send_data = {
             "player": p1,
             "settings": settings
         }
-        receivedData = n.send(sendData)
-        p2 = receivedData["player"]
-        ball = receivedData["ball"]
-        score = receivedData["score"]
+        send_datareceived_data = n.send(send_data)
+        p2 = send_datareceived_data["player"]
+        ball = send_datareceived_data["ball"]
+        score = send_datareceived_data["score"]
         p2.update()
 
-        # do something when something happens
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
 
-        # move the player
         p1.move()
 
-        # prevent player from going off the screen
-        if p1.y < 0:
-            p1.y = 0
-        elif p1.y > 400-p1.height:
-            p1.y = 400-p1.height
-        if p2.y < 0:
-            p2.y = 0
-        elif p2.y > 400-p1.height:
-            p2.y = 400-p1.height
+        p1.border_guard()
+        p2.border_guard()
 
         generate_board(ball, p1, p2, score)
         clock.tick(60)
@@ -110,9 +98,11 @@ def game_loop(p1, p2, n, settings):
 def main_menu():
     n = Network()
     p1 = n.getP()
-    settings = Settings(50, 50, 5, 5, 3, 7)
-    ready_btn = Button("Ready", "Ready", display_width//2-75, 310, 150, 75, grey)
-    settings_btns = [
+
+    # Can't put buttons in settings cause then pickle can't pickle it.
+    # Putting the buttons in settings would've been a bad idea anyway cause the server doesn't need them
+    ready_button = Button("Ready", "Ready", display_width // 2 - 75, 310, 150, 75, grey)
+    settings_buttons = [
         Button("p1_size+", "+", display_width // 2 + 100, 25, 25, 25, grey),
         Button("p1_size-", "-", display_width // 2 - 125, 25, 25, 25, grey),
         Button("p2_size+", "+", display_width // 2 + 100, 75, 25, 25, grey),
@@ -126,16 +116,16 @@ def main_menu():
         Button("y_vel+", "+", display_width // 2 + 175, 275, 25, 25, grey),
         Button("y_vel-", "-", display_width // 2 - 200, 275, 25, 25, grey)
     ]
+    settings = Settings(50, 50, 5, 5, 3, 7)
 
     while True:
-        sendData = {
+        send_data = {
             "player": p1,
             "settings": settings
         }
-        receivedData = n.send(sendData)
-        p2 = receivedData["player"]
+        send_datareceived_data = n.send(send_data)
         if p1.number == 1:
-            settings = receivedData["settings"]
+            settings = send_datareceived_data["settings"]
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -144,44 +134,15 @@ def main_menu():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pos = pygame.mouse.get_pos()
-                if pygame.Rect(ready_btn.rect).collidepoint(pos):
+                if pygame.Rect(ready_button.rect).collidepoint(pos):
                     p1.ready = True
                 elif p1.number == 0:
-                    for btn in settings_btns:
+                    for btn in settings_buttons:
                         if pygame.Rect(btn.rect).collidepoint(pos):
-                            if btn.id == "p1_size+":
-                                settings.p1size += 10
-                            elif btn.id == "p1_size-":
-                                settings.p1size -= 10
-                            elif btn.id == "p2_size+":
-                                settings.p2size += 10
-                            elif btn.id == "p2_size-":
-                                settings.p2size -= 10
-                            elif btn.id == "p1_vel+":
-                                settings.p1vel += 1
-                            elif btn.id == "p1_vel-":
-                                settings.p1vel -= 1
-                            elif btn.id == "p2_vel+":
-                                settings.p2vel += 1
-                            elif btn.id == "p2_vel-":
-                                settings.p2vel -= 1
-                            elif btn.id == "x_vel+":
-                                settings.ballxvel += 1
-                            elif btn.id == "x_vel-":
-                                settings.ballxvel -= 1
-                            elif btn.id == "y_vel+":
-                                settings.ballyvel += 1
-                            elif btn.id == "y_vel-":
-                                settings.ballyvel -= 1
+                            settings = process_button_click(btn, settings)
 
-        gameDisplay.fill(black)
-        if p1.number == 0:
-            settings.draw(gameDisplay, display_width, white, settings_btns)
-        else:
-            settings.draw(gameDisplay, display_width, white, [])
-        ready_btn.draw(gameDisplay)
-        pygame.display.update()
-        if receivedData["ready"]:
+        draw_board(p1, settings, settings_buttons, ready_button)
+        if send_datareceived_data["ready"]:
             print("Game starting")
             break
 
@@ -189,7 +150,47 @@ def main_menu():
         p1.height = settings.p1size
     else:
         p1.height = settings.p2size
-    game_loop(p1, p2, n, settings)
+    game_loop(p1, n, settings)
+
+
+def process_button_click(button, settings):
+    # There must be a better way for this but for now this will do.
+    if button.id == "p1_size+":
+        settings.p1size += 10
+    elif button.id == "p1_size-":
+        settings.p1size -= 10
+    elif button.id == "p2_size+":
+        settings.p2size += 10
+    elif button.id == "p2_size-":
+        settings.p2size -= 10
+    elif button.id == "p1_vel+":
+        settings.p1vel += 1
+    elif button.id == "p1_vel-":
+        settings.p1vel -= 1
+    elif button.id == "p2_vel+":
+        settings.p2vel += 1
+    elif button.id == "p2_vel-":
+        settings.p2vel -= 1
+    elif button.id == "x_vel+":
+        settings.ballxvel += 1
+    elif button.id == "x_vel-":
+        settings.ballxvel -= 1
+    elif button.id == "y_vel+":
+        settings.ballyvel += 1
+    elif button.id == "y_vel-":
+        settings.ballyvel -= 1
+    return settings
+
+
+def draw_board(p1, settings, settings_buttons, ready_button):
+    gameDisplay.fill(black)
+    if p1.number == 0:
+        settings.draw(gameDisplay, display_width, white, settings_buttons)
+    else:
+        settings.draw(gameDisplay, display_width, white, [])
+    ready_button.draw(gameDisplay)
+    pygame.display.update()
+
 
 main_menu()
 pygame.quit()

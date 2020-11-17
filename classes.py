@@ -1,15 +1,16 @@
 import pygame
 import numpy
 
+
 class Player():
-    def __init__ (self, number, x, y, width, height, color):
+    def __init__(self, number, x, y, width, height, color):
         self.number = number
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.color = color
-        self.rect = (self.x,self.y,width,height)
+        self.rect = (self.x, self.y, width, height)
         self.vel = 5
         self.ready = False
 
@@ -18,12 +19,6 @@ class Player():
 
     def move(self):
         keys = pygame.key.get_pressed()
-
-        # if keys[pygame.K_LEFT]:
-        #     self.x -= self.vel
-        #
-        # if keys[pygame.K_RIGHT]:
-        #     self.x += self.vel
 
         if keys[pygame.K_UP]:
             self.y -= self.vel
@@ -36,17 +31,24 @@ class Player():
     def update(self):
         self.rect = (self.x, self.y, self.width, self.height)
 
+    def border_guard(self):
+        # prevent player from going off the screen
+        if self.y < 0:
+            self.y = 0
+        elif self.y > 400 - self.height:
+            self.y = 400 - self.height
+
 
 class Ball():
-    def __init__ (self, x, y, width, height, color):
+    def __init__(self, x, y, width, height, color):
         self.x = x
         self.y = y
         self.width = width
         self.height = height
         self.color = color
-        self.rect = (self.x,self.y,width,height)
-        self.xvel = 3 #numpy.random.randint(3,5)
-        self.yvel = numpy.random.randint(-3,3)
+        self.rect = (self.x, self.y, width, height)
+        self.xvel = 3  # numpy.random.randint(3,5)
+        self.yvel = numpy.random.randint(-3, 3)
         self.yvelmax = 3
 
     def update(self):
